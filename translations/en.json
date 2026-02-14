@@ -1,0 +1,12 @@
+{
+  "booking": {
+    "status": {
+      "confirmed": "confirmed",
+      "failed": "failed"
+    }
+  },
+  "details": {
+    "description": "test",
+    "title": "test"
+  }
+}

@@ -1,0 +1,38 @@
+name: Sync translations
+
+on:
+  repository_dispatch:
+    types: [sync-translations]
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Fetch and apply translations
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          PROJECT_ID: ${{ github.event.client_payload.project_id }}
+          FALLBACK_PROJECT_ID: ${{ secrets.TRANSLATION_PROJECT_ID }}
+          API_KEY: ${{ secrets.TRANSLATION_API_KEY }}
+        run: |
+          set -e
+          PID="${PROJECT_ID:-$FALLBACK_PROJECT_ID}"
+          curl -s "${SUPABASE_URL}/functions/v1/get-translations?project_id=${PID}&api_key=${API_KEY}" > /tmp/translations.json
+          for path in $(jq -r '.files[].path' /tmp/translations.json); do
+            mkdir -p "$(dirname "$path")"
+            jq -r --arg p "$path" '.files[] | select(.path==$p) | .content' /tmp/translations.json > "$path"
+          done
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "chore: sync translations from Lokalise"
+            git push
+          fi
